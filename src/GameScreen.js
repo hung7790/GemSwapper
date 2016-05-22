@@ -32,7 +32,5 @@ exports = Class(ui.ImageView, function(supr) {
             height: 250,
             superview: this,
         });
-
-
     };
 });

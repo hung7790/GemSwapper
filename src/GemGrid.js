@@ -9,21 +9,18 @@ import device;
 
 const COLUMN = 10;
 const ROW = 8;
+const GWIDTH = 300; // opts.superview.style.width;
+const GHEIGHT = 250; // opts.superview.style.height - opts.y;
+const GX = 11;
+const GY = 149;
 
 exports = Class(ui.View, function(supr) {
+    var _gemHeight = 1;
+
     this.init = function(opts) {
         opts = merge(opts, {
 
         });
-
-        this.opts = opts;
-        this._gridWidth = opts.width; // opts.superview.style.width;
-        this._gridHeight = opts.height; // opts.superview.style.height - opts.y;
-        this._gems = this.addGems;
-        this._gemWidth = opts.width/COLUMN;
-        this._gemHeight = opts.height/ROW;
-        this.name= "sad";
-        console.log(this.test);
         supr(this, 'init', [opts]);
         this.build();
     };
@@ -36,18 +33,17 @@ exports = Class(ui.View, function(supr) {
             id: params.id,
             row: params.row,
             col: params.column,
-            width: this._gemWidth ,
-            height: this._gemHeight,
+            width: GWIDTH / COLUMN,
+            height: GHEIGHT / ROW,
             gemType: params.gemType,
-            x:params.x,
-            y:params.y
+            x: params.x,
+            y: params.y
         });
         return gem;
 
     };
-
+    var gems = [];
     this.addGems = function() {
-        var gems = [];
         var cnt = 1;
         for (var i = 0; i < ROW; i++) {
             var gemRows = [];
@@ -57,8 +53,8 @@ exports = Class(ui.View, function(supr) {
                     row: i,
                     column: j,
                     gemType: 1,
-                    x:this._gemWidth*j,
-                    y:this._gemHeight*i
+                    x: GWIDTH / COLUMN * j,
+                    y: GHEIGHT / ROW * i
                 };
                 gemRows.push(this.addGem(params));
             }
@@ -66,11 +62,12 @@ exports = Class(ui.View, function(supr) {
         }
         return gems;
     };
-    this.test = "g";
-    this.on('InputSelect', function (event, point) {
-        console.log(point.x);
-        console.log(this);
-        console.log(this.test);
-        console.log(point.y/this._gemHeight);
+    this.getXY = function(point) {
+
+        console.log(point.y / GHEIGHT * ROW);
+        console.log(gems);
+    }
+    this.on('InputSelect', function(event, point) {
+        this.getXY(point);
     });
 });
