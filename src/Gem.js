@@ -15,14 +15,17 @@ var gemsImgs = [
 exports = Class(ui.View, function (supr) {
 	this.init = function (opts) {
 		opts = merge(opts, {
-			/*opts*/
-			backgroundColor : '#000000'
 		});
 		this.opts = opts;
 		this.id = opts.id;
 		this.gemType = opts.gemType;
 		this.row = opts.row;
 		this.col = opts.col;
+		this.moveCount = opts.moveCount;
+		this.tx = opts.x;
+		this.ty = opts.ty;
+		this.x = opts.x;
+		this.y = opts.y;
 		supr(this, 'init', [opts]);
 		this.build();
 	};

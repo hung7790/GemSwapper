@@ -22,6 +22,7 @@ exports = Class(GC.Application, function() {
             scale: device.width / 320
         });
         rootView.push(gamescreen);
+		gamescreen.emit('app:start');
     };
 
     this.launchUI = function() {
