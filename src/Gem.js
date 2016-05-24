@@ -17,19 +17,17 @@ exports = Class(ui.View, function (supr) {
 		opts = merge(opts, {
 		});
 		this.opts = opts;
-		this.id = opts.id;
-		this.gemType = opts.gemType;
-		this.row = opts.row;
-		this.col = opts.col;
-		this.moveCount = opts.moveCount;
-		this.tx = opts.x;
-		this.ty = opts.ty;
-		this.x = opts.x;
-		this.y = opts.y;
 		supr(this, 'init', [opts]);
 		this.build();
 	};
-
+	this.updateParams = function(params){
+		this.id = params.id;
+		this.gemType = params.gemType;
+		this.row = params.row;
+		this.col = params.col;
+		this.moveCount = params.moveCount;
+		this.gemImg.updateOpts({image: gemsImgs[this.gemType]});
+	}
 	this.build = function () {
 		// image
 		this.gemImg = new ImageView({
@@ -43,6 +41,9 @@ exports = Class(ui.View, function (supr) {
 		// init
 		//this.setBubType(this.bubType);
 	};
+	this.updateImg = function (){
+
+	}
   this.setBubType = function (type) {
 		this.gemImg.setImage(gemsImgs[type]);
 		this.gemType = type;
