@@ -26,27 +26,41 @@ exports = Class(ui.View, function(supr) {
         this.build();
     };
     this.build = function() {
-        this.gemViewPool = new ViewPool({
-            ctor: Gem,
-            initCount: COLUMN*ROW*1.2,
-            initOpts: {
-                superview: this,
-                width: GEMWIDTH,
-                height: GEMHEIGHT
-            }
-        });
+        // this.gemViewPool = new ViewPool({
+        //     ctor: Gem,
+        //     initCount: COLUMN*ROW*1.2,
+        //     initOpts: {
+        //         superview: this,
+        //         width: GEMWIDTH,
+        //         height: GEMHEIGHT,
+        //         backgroundColor: "#00ffff"
+        //     }
+        // });
 
 
     };
     this.addGem = function(params) {
-        var gem = this.gemViewPool.obtainView();
-        gem.updateOpts({x:params.x,y:params.y});
-        gem.updateParams({
-            id: params.id,
-            row: params.row,
-            col: params.column,
+        // var gem = this.gemViewPool.obtainView();
+        // gem.updateOpts({x:params.x,y:params.y,backgroundColor:"#00ffff",superview:this });
+        // gem.updateParams({
+        //     id: params.id,
+		// 	width: GEMWIDTH,
+        //     height: GEMHEIGHT,
+        //     row: params.row,
+        //     col: params.column,
+        //     gemType: params.gemType,
+        //     moveCount: params.moveCount
+        // });
+        var gem = new Gem({
+            superview: this,
+            x:params.x,
+            y:params.y,
+            width: GEMWIDTH,
+            height: GEMHEIGHT,
             gemType: params.gemType,
-            moveCount: params.moveCount
+            moveCount: params.moveCount,
+            row: params.row,
+            col: params.column
         });
         return gem;
 
@@ -55,14 +69,18 @@ exports = Class(ui.View, function(supr) {
     this.gems = [];
 
     this.allGemMove = function() {
+		var lastgemAnimator;
         for (var i = 0; i < this.gems.length; i++) {
             for (var j = 0; j < this.gems[i].length; j++) {
-                if (this.gems[i][j].moveCount != 0) {
-                    this.gemMove(this.gems[i][j]);
+                if (this.gems[i][j] != null && this.gems[i][j].moveCount != 0) {
+                    lastgemAnimator = this.gemMove(this.gems[i][j]);
                 }
             }
         }
-        resetGems(this.gems);
+		lastgemAnimator.then(bind(this,function(){
+            resetGems(this.gems);
+		this.emit("GemGrid:MoveFinish");
+		}));
     }
 
     this.createInitalGems = function(_gemsType) {
@@ -90,63 +108,104 @@ exports = Class(ui.View, function(supr) {
             MOVETIME * gem.moveCount);
         return animator;
     }
-
+	this.destroyGem = function(gem)
+	{
+		 var animator = animate(gem).now({width:0,height:0},
+            100);
+        return animator;
+	}
+	var removeCounter = 0;
+	var numberOfRemove= 0;
     this.removeAllChain = function(allChain) {
+		var lastgemAnimator;
         for (var i = 0; i < allChain.length; i++) {
             for (var j = 0; j < allChain[i].length; j++) {
+				numberOfRemove++;
                 var coord = allChain[i][j].split(",");
-                var gemsToRemove = this.gems[coord[0]][coord[1]];
+                var gemsToRemove = []
+				gemsToRemove = this.gems[coord[0]][coord[1]];
                 this.gems[coord[0]][coord[1]] = null;
-                this.gemViewPool.releaseView(gemsToRemove);
+				this.removeGem(gemsToRemove);
             }
         }
     }
+	this.removeGem = function(gemsToRemove)
+	{
+		this.destroyGem(gemsToRemove).then(bind(this,()=>{
+					//this.gemViewPool.releaseView(gemsToRemove);
+                    this.removeSubview(gemsToRemove);
+
+
+                    this.checkRemoveAllFinish();
+					}));
+	}
+	this.checkRemoveAllFinish = function()
+	{
+		removeCounter++;
+		if(removeCounter == numberOfRemove)
+		{
+			removeCounter = 0;
+			numberOfRemove = 0;
+			this.emit("GemGrid:RemoveChainFinish");
+		}
+	}
+
+
+	this.refillGems = function (_gemsType){
+            for (var j = 0; j < COLUMN; j++) {
+			var refillCnt = 0;
+				for (var i = ROW - 1; i >=0; i--) {
+
+				if(this.gems[i][j] == null)
+				{
+                var params = {
+                    row: i,
+                    column: j,
+                    gemType: _gemsType[i][j],
+                    x: GWIDTH / COLUMN * j,
+                    y: GHEIGHT / ROW * (- 1 - refillCnt),
+                    moveCount: refillCnt + 1 + i
+                };
+				refillCnt++;
+                this.gems[i][j] = this.addGem(params);
+				}
+			}
+        }
+    }
+
+
+
+	this.gemFall = function(){
+		for(var j = 0; j < COLUMN; j++)
+		{
+			var btmEmpty = -1;
+			for(var i = ROW-1; i>=0 ; i--)
+			{
+				if(this.gems[i][j]==null)
+				{
+					if(btmEmpty == -1)
+					{
+						btmEmpty = i;
+					}
+				}
+				else
+				{
+					if(btmEmpty != -1)
+					{
+						this.gems[btmEmpty][j] = this.gems[i][j];
+						this.gems[btmEmpty][j].moveCount = btmEmpty - i;
+						this.gems[btmEmpty][j].row = btmEmpty;
+						this.gems[i][j] = null;
+						btmEmpty--;
+					}
+				}
+			}
+		}
+	}
+
 
     this.selectedGem = [];
 
-    this.onSelectGem = function(gem) {
-        if (gem == null) {
-            if (this.selectedGem.length != 0) {
-                deHighlightGem(this.selectedGem[0]);
-                this.selectedGem.pop();
-            }
-            return;
-        }
-        if (this.selectedGem.length == 0) {
-            this.selectedGem.push(gem);
-            highlightGem(gem);
-        } else if (this.selectedGem.length == 1) {
-            var sGem0 = this.selectedGem[0];
-            if (sGem0.row == gem.row || sGem0.col == gem.col) {
-
-                if (Math.abs(sGem0.row - gem.row) == 1 || Math.abs(sGem0.col - gem.col) == 1) {
-                    var lRow = Math.min(sGem0.row, gem.row);
-                    var lCol = Math.min(sGem0.col, gem.col);
-                    if (this.possibleMove.hasOwnProperty(lRow + "," + lCol)) {
-                        this._gemsTypeSwap(sGem0.row, sGem0.col, gem.row, gem.col);
-                        this.gemSwap(sGem0, gem);
-                        this.gemSwapAnimate(sGem0, gem, bind(this, function() {
-                            this.getAllChain();
-                            this.removeAllChain();
-                        }));
-                        console.log("good");
-                    } else {
-                        this.gemSwap(sGem0, gem);
-                        this.gemSwapAnimate(sGem0, gem, bind(this, function() {
-                            this.gemSwap(sGem0, gem);
-                            this.gemSwapAnimate(sGem0, gem);
-                        }));
-                    }
-                } else {
-                    this.selectedGem.pop();
-                }
-            } else {
-                this.selectedGem.pop();
-            }
-            this.selectedGem.pop();
-            deHighlightGem(sGem0);
-        }
-    }
 
     this.gemSwapAnimate = function(gem0, gem1, callback) {
         this.gemMove(gem0);
@@ -196,19 +255,7 @@ function swap(obj1, obj2, key) {
 
 function resetGems(gems) {
     for (var i = 0; i < gems.length; i++) {
-        gems[i].moveCount = 0;
+        for(var j = 0; j<gems[i][j].length; j++)
+            gems[i].moveCount = 0;
     }
-}
-
-
-function highlightGem(gem) {
-    gem.updateOpts({
-        backgroundColor: '#0000ff'
-    });
-}
-
-function deHighlightGem(gem) {
-    gem.updateOpts({
-        backgroundColor: ''
-    });
 }

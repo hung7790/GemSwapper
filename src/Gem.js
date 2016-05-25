@@ -13,21 +13,35 @@ var gemsImgs = [
 
 /* Represented by collision circle */
 exports = Class(ui.View, function (supr) {
+	// this.init = function (opts) {
+	// 	opts = merge(opts, {
+	// 	});
+	// 	this.opts = opts;
+	// 	supr(this, 'init', [opts]);
+	// 	this.build();
+	// };
 	this.init = function (opts) {
-		opts = merge(opts, {
-		});
-		this.opts = opts;
-		supr(this, 'init', [opts]);
-		this.build();
-	};
-	this.updateParams = function(params){
-		this.id = params.id;
-		this.gemType = params.gemType;
-		this.row = params.row;
-		this.col = params.col;
-		this.moveCount = params.moveCount;
-		this.gemImg.updateOpts({image: gemsImgs[this.gemType]});
-	}
+	opts = merge(opts, {
+	});
+	this.opts = opts;
+	this.id = opts.id;
+	this.gemType = opts.gemType;
+	this.row = opts.row;
+	this.col = opts.col;
+	this.moveCount = opts.moveCount;
+	this.x = opts.x;
+	this.y = opts.y;
+	supr(this, 'init', [opts]);
+	this.build();
+};
+	// this.updateParams = function(params){
+	// 	this.id = params.id;
+	// 	this.gemType = params.gemType;
+	// 	this.row = params.row;
+	// 	this.col = params.col;
+	// 	this.moveCount = params.moveCount;
+	// 	this.gemImg.updateOpts({image: gemsImgs[this.gemType]});
+	// }
 	this.build = function () {
 		// image
 		this.gemImg = new ImageView({
@@ -38,8 +52,7 @@ exports = Class(ui.View, function (supr) {
 			width: this.opts.width*0.9,
 			height: this.opts.height*0.9,
 		});
-		// init
-		//this.setBubType(this.bubType);
+
 	};
 	this.updateImg = function (){
 

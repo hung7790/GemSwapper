@@ -57,7 +57,7 @@ exports = Class(ui.ImageView, function(supr) {
 
     };
 
-    var gemGrid;
+    var allowInput = false;
 
     this.gameStart = function() {
         this.startMessage.setText('Tap to PLAY!');
@@ -70,11 +70,15 @@ exports = Class(ui.ImageView, function(supr) {
             this.initizeGrid();
             this.getAllPossibleMove();
             gemGrid.on('InputSelect', bind(this, function(event, point) {
-                this.onSelectGem(gemGrid.getSelectGem(point));
+                if (allowInput) {
+                    this.onSelectGem(gemGrid.getSelectGem(point));
+                }
             }));
         });
-
+        this.once("GemGrid:MoveFinish", allowInput = true);
     }
+
+    var gemGrid;
     var _gemsType = [];
 
     this.initizeGrid = function() {
@@ -104,6 +108,7 @@ exports = Class(ui.ImageView, function(supr) {
     this.possibleMove = {};
 
     this.getAllPossibleMove = function() {
+        this.possibleMove = {};
         for (var i = 0; i < ROW; i++) {
             for (var j = 0; j < COLUMN; j++) {
                 // -1: no chain , 0 : horizontal ,1: veritical , 2 : both
@@ -144,7 +149,7 @@ exports = Class(ui.ImageView, function(supr) {
         if (vertLength >= 3) return true;
         horzLength = 1;
         for (var i = col - 1; i >= 0 && _gemsType[row][i] == gemType; i--, horzLength++);
-        for (var i = col + 1; i < ROW && _gemsType[row][i] == gemType; i++, horzLength++);
+        for (var i = col + 1; i < COLUMN && _gemsType[row][i] == gemType; i++, horzLength++);
         return (horzLength >= 3);
     }
 
@@ -157,34 +162,61 @@ exports = Class(ui.ImageView, function(supr) {
             highlightGem(gem);
         } else if (selectedGem.length == 1) {
             var sGem0 = selectedGem[0];
-            if (sGem0.row == gem.row || sGem0.col == gem.col) {
-                if (Math.abs(sGem0.row - gem.row) == 1 || Math.abs(sGem0.col - gem.col) == 1) {
-                    var lRow = Math.min(sGem0.row, gem.row);
-                    var lCol = Math.min(sGem0.col, gem.col);
-                    if (this.possibleMove.hasOwnProperty(lRow + "," + lCol)) {
-                        _gemsTypeSwap(sGem0.row, sGem0.col, gem.row, gem.col);
-                        gemGrid.gemSwap(sGem0, gem);
-                        gemGrid.gemSwapAnimate(sGem0, gem, function() {
-                            getAllChain();
-                            gemGrid.removeAllChain(allChain);
-                        });
-                    } else {
-                        gemGrid.gemSwap(sGem0, gem);
-                        gemGrid.gemSwapAnimate(sGem0, gem, function() {
-                            gemGrid.gemSwap(sGem0, gem);
-                            gemGrid.gemSwapAnimate(sGem0, gem);
-                        });
-                    }
+            deHighlightGem(sGem0);
+            if ((sGem0.row == gem.row || sGem0.col == gem.col) &&
+                (Math.abs(sGem0.row - gem.row) == 1 || Math.abs(sGem0.col - gem.col) == 1)) {
+
+                if (this.checkMoveValid(sGem0.row, sGem0.col, gem.row, gem.col)) {
+                    allowInput = false;
+                    _gemsTypeSwap(sGem0.row, sGem0.col, gem.row, gem.col);
+                    gemGrid.gemSwap(sGem0, gem);
+                    gemGrid.gemSwapAnimate(sGem0, gem, bind(this, function() {
+                        this.possibleMove = {};
+                        getAllChain();
+                        this.removeChain();
+                    }));
                 } else {
-                    selectedGem.pop();
+                    gemGrid.gemSwap(sGem0, gem);
+                    gemGrid.gemSwapAnimate(sGem0, gem, function() {
+                        gemGrid.gemSwap(sGem0, gem);
+                        gemGrid.gemSwapAnimate(sGem0, gem, () => {
+                            allowInput = true;
+                        });
+                    });
                 }
-            } else {
-                selectedGem.pop();
             }
             selectedGem.pop();
-            deHighlightGem(sGem0);
+        } else {
+            Console.log("error");
         }
     }
+    this.checkMoveValid = function (row0,col0,row1,col1){
+        var lRow = Math.min(row0,row1);
+        var lCol = Math.min(col0,col1);
+        if (this.possibleMove.hasOwnProperty(lRow + "," + lCol))
+        {
+                            // -1: no chain , 0 : horizontal ,1: veritical , 2 : both
+            if(this.possibleMove[lRow + "," + lCol] == 2)
+            {
+                return true;
+            }
+            else if(this.possibleMove[lRow + "," + lCol] == 1)
+            {
+                if (col0 == col1)
+                    return true;
+            }
+            else if(this.possibleMove[lRow + "," + lCol] == 0)
+            {
+                if(row0 == row1)
+                    return true;
+            }
+        }
+        return false;
+    }
+
+
+
+
     var allChain = [];
 
     function getAllChain() {
@@ -196,7 +228,7 @@ exports = Class(ui.ImageView, function(supr) {
                 var type = _gemsType[i][j];
                 if (_gemsType[i][j + 1] == type && _gemsType[i][j + 2] == type) {
                     var chainSet = [];
-                    while (_gemsType[i][j] == type) {
+                    while (j < _gemsType[i].length && _gemsType[i][j] == type) {
                         destroyList[i + "," + j] = allChain.length;
                         chainSet.push(i + "," + j);
                         j++;
@@ -214,7 +246,7 @@ exports = Class(ui.ImageView, function(supr) {
                 if (_gemsType[i + 1][j] == type && _gemsType[i + 2][j] == type) {
                     var chainSet = [];
                     var chainIndex = -1;
-                    while (_gemsType[i][j] == type) {
+                    while (i < _gemsType.length && _gemsType[i][j] == type) {
                         if (destroyList.hasOwnProperty(i + "," + j)) {
                             chainIndex = destroyList[i + "," + j];
                         }
@@ -224,21 +256,85 @@ exports = Class(ui.ImageView, function(supr) {
                     if (chainIndex == -1) {
                         allChain.push(chainSet);
                     } else {
-                        for(var a = 0;i<chainSet.length;a++)
-                        {
-                            for(var b=0; j<allChain[chainIndex];b++)
-                            {
-                                if(chainSet[a] == allChain[chainIndex][b])
-                                {
-                                    continue;
-                                }
-                                 allChain[chainIndex].push(chainSet[a]);
-                            }
+                        for (var a = 0; a < chainSet.length; a++) {
+                            if (allChain[chainIndex].indexOf(chainSet[a]) < 0)
+                                allChain[chainIndex].push(chainSet[a]);
                         }
                     }
+
                 } else {
                     i++;
                 }
+            }
+        }
+    }
+
+
+    this.removeChain = function() {
+        if(allChain == 0) console.log("error");
+        for (var i = 0; i < allChain.length; i++) {
+            for (var j = 0; j < allChain[i].length; j++) {
+                var coord = allChain[i][j].split(",");
+                _gemsType[coord[0]][coord[1]] = -1;
+            }
+        }
+        gemGrid.once("GemGrid:RemoveChainFinish", bind(this, function() {
+            this.gemFall();
+            gemGrid.gemFall();
+            this.refillGem();
+            gemGrid.refillGems(_gemsType);
+            this.checkChainAfterFall();
+            gemGrid.allGemMove();
+        }));
+
+        gemGrid.removeAllChain(allChain);
+    }
+
+    this.checkChainAfterFall = function() {
+        gemGrid.once("GemGrid:MoveFinish", bind(this, function() {
+            getAllChain();
+            if (allChain != 0) {
+                this.removeChain();
+            } else {
+                this.getAllPossibleMove();
+                allowInput = true;
+            }
+        }));
+    }
+
+
+
+    this.gemFall = function() {
+        for (var j = 0; j < COLUMN; j++) {
+            var btmEmpty = -1;
+            for (var i = ROW - 1; i >= 0; i--) {
+                if (_gemsType[i][j] == -1) {
+                    if (btmEmpty == -1) {
+                        btmEmpty = i;
+                    }
+                } else {
+                    if (btmEmpty != -1) {
+                        _gemsType[btmEmpty][j] = _gemsType[i][j];
+                        _gemsType[i][j] = -1;
+                        btmEmpty--;
+                    }
+                }
+            }
+        }
+    }
+
+    this.refillGem = function() {
+        for (var j = 0; j < COLUMN; j++) {
+            var oldType = -1;
+            for (var i = 0; i < ROW; i++) {
+                if (_gemsType[i][j] != -1) continue;
+                var randomType;
+                do {
+                    randomType = Math.floor((Math.random() * 5));
+                }
+                while (oldType == randomType);
+                oldType = randomType;
+                _gemsType[i][j] = randomType;
             }
         }
     }
@@ -249,12 +345,12 @@ exports = Class(ui.ImageView, function(supr) {
 
 function highlightGem(gem) {
     gem.updateOpts({
-        backgroundColor: '#0000ff'
+        backgroundColor: '#ffffff'
     });
 }
 
 function deHighlightGem(gem) {
     gem.updateOpts({
-        backgroundColor: ''
+        backgroundColor: '#000000'
     });
 }
