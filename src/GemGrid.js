@@ -1,26 +1,21 @@
 import animate;
 import src.Gem as Gem;
 import ui.View;
+import ui.TextView;
 import device;
 import ui.ViewPool as ViewPool;
+import src.Global as Global;
 
-const COLUMN = 10;
-const ROW = 8;
-const GWIDTH = 300;
-const GHEIGHT = 250;
-const GX = 11;
-const GY = 149;
-const MOVETIME = 100; // the time for move one gem height;
-const GEMWIDTH = GWIDTH / COLUMN;
-const GEMHEIGHT = GHEIGHT / ROW;
-
+var Setting = Global.Setting;
+var gemWidth = Global.Setting.gridWidth/Global.Setting.column;
+var gemHeight = Global.Setting.gridHeight/Global.Setting.row;
 exports = Class(ui.View, function(supr) {
     this.init = function(opts) {
         opts = merge(opts, {
-            x: GX,
-            y: GY,
-            width: GWIDTH,
-            height: GHEIGHT
+            x: Setting.gridX,
+            y: Setting.gridY,
+            width: Setting.gridWidth,
+            height: Setting.gridHeight
         });
         supr(this, 'init', [opts]);
         this.build();
@@ -36,7 +31,6 @@ exports = Class(ui.View, function(supr) {
         //         backgroundColor: "#00ffff"
         //     }
         // });
-
 
     };
     this.addGem = function(params) {
@@ -55,8 +49,8 @@ exports = Class(ui.View, function(supr) {
             superview: this,
             x:params.x,
             y:params.y,
-            width: GEMWIDTH,
-            height: GEMHEIGHT,
+            width: gemWidth,
+            height: gemHeight,
             gemType: params.gemType,
             moveCount: params.moveCount,
             row: params.row,
@@ -84,16 +78,17 @@ exports = Class(ui.View, function(supr) {
     }
 
     this.createInitalGems = function(_gemsType) {
-        for (var i = 0; i < ROW; i++) {
+        this.gems = [];
+        for (var i = 0; i < Setting.row; i++) {
             var gemRows = [];
-            for (var j = 0; j < COLUMN; j++) {
+            for (var j = 0; j < Setting.column; j++) {
                 var params = {
                     row: i,
                     column: j,
                     gemType: _gemsType[i][j],
-                    x: GWIDTH / COLUMN * j,
-                    y: GHEIGHT / ROW * (i - ROW - 1),
-                    moveCount: ROW + 1
+                    x: gemWidth * j,
+                    y: gemHeight * (i - Setting.row - 1),
+                    moveCount: Setting.row + 1
                 };
                 gemRows.push(this.addGem(params));
             }
@@ -104,14 +99,14 @@ exports = Class(ui.View, function(supr) {
 
 
     this.gemMove = function(gem) {
-        var animator = animate(gem).now(getCoord(gem.row, gem.col),
-            MOVETIME * gem.moveCount);
+        var animator = animate(gem).now(Global.getCoord(gem.row, gem.col),
+            Setting.moveTime * gem.moveCount);
         return animator;
     }
 	this.destroyGem = function(gem)
 	{
-		 var animator = animate(gem).now({width:0,height:0},
-            100);
+		 var animator = animate(gem.gemImg).now({width:0,height:0},
+            3000);
         return animator;
 	}
 	var removeCounter = 0;
@@ -120,11 +115,12 @@ exports = Class(ui.View, function(supr) {
 		var lastgemAnimator;
         for (var i = 0; i < allChain.length; i++) {
             for (var j = 0; j < allChain[i].length; j++) {
+
 				numberOfRemove++;
-                var coord = allChain[i][j].split(",");
-                var gemsToRemove = []
-				gemsToRemove = this.gems[coord[0]][coord[1]];
-                this.gems[coord[0]][coord[1]] = null;
+                var position = allChain[i][j].split(",");
+                var gemsToRemove;
+				gemsToRemove = this.gems[position[0]][position[1]];
+                this.gems[position[0]][position[1]] = null;
 				this.removeGem(gemsToRemove);
             }
         }
@@ -152,9 +148,9 @@ exports = Class(ui.View, function(supr) {
 
 
 	this.refillGems = function (_gemsType){
-            for (var j = 0; j < COLUMN; j++) {
+            for (var j = 0; j < Setting.column; j++) {
 			var refillCnt = 0;
-				for (var i = ROW - 1; i >=0; i--) {
+				for (var i = Setting.row - 1; i >=0; i--) {
 
 				if(this.gems[i][j] == null)
 				{
@@ -162,8 +158,8 @@ exports = Class(ui.View, function(supr) {
                     row: i,
                     column: j,
                     gemType: _gemsType[i][j],
-                    x: GWIDTH / COLUMN * j,
-                    y: GHEIGHT / ROW * (- 1 - refillCnt),
+                    x: gemWidth * j,
+                    y: gemHeight * (- 1 - refillCnt),
                     moveCount: refillCnt + 1 + i
                 };
 				refillCnt++;
@@ -176,10 +172,10 @@ exports = Class(ui.View, function(supr) {
 
 
 	this.gemFall = function(){
-		for(var j = 0; j < COLUMN; j++)
+		for(var j = 0; j < Setting.column; j++)
 		{
 			var btmEmpty = -1;
-			for(var i = ROW-1; i>=0 ; i--)
+			for(var i = Setting.row-1; i>=0 ; i--)
 			{
 				if(this.gems[i][j]==null)
 				{
@@ -204,7 +200,6 @@ exports = Class(ui.View, function(supr) {
 	}
 
 
-    this.selectedGem = [];
 
 
     this.gemSwapAnimate = function(gem0, gem1, callback) {
@@ -234,18 +229,14 @@ exports = Class(ui.View, function(supr) {
     }
 
     this.getSelectGem = function(point) {
-        var col = Math.floor(point.x / GWIDTH * COLUMN);
-        var rol = Math.floor(point.y / GHEIGHT * ROW);
+        var col = Math.floor(point.x / Setting.gridWidth * Setting.column);
+        var rol = Math.floor(point.y / Setting.gridHeight * Setting.row);
         return this.gems[rol][col];
     }
+    this.clearGem = function(){
+        this.gems = [];
+    }
 });
-
-function getCoord(row, col) {
-    return {
-        x: GWIDTH / COLUMN * col,
-        y: GHEIGHT / ROW * row
-    };
-}
 
 function swap(obj1, obj2, key) {
     var temp = obj1[key];

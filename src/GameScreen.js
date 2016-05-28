@@ -9,8 +9,11 @@ import device;
 import ui.View;
 import ui.ImageView;
 import ui.TextView;
+import animate;
 import src.GemGrid as GemGrid;
+import src.Global as Global;
 
+var Setting = Global.Setting;
 const COLUMN = 10;
 const ROW = 8;
 const GWIDTH = 300;
@@ -36,12 +39,27 @@ exports = Class(ui.ImageView, function(supr) {
     };
 
     this.build = function() {
-        this.startMessage = new ui.TextView({
+        this.startTxt = new ui.TextView({
             superview: this,
             x: 60,
-            y: 40,
+            y: 200,
             width: 200,
             height: 36,
+            autoFontSize: true,
+            verticalAlign: 'middle',
+            horizontalAlign: 'center',
+            wrap: true,
+            strokeWidth: '3',
+            strokeColor: '#fff',
+            color: '#F9912E',
+            shadowColor: '#3A96CF'
+        });
+        this.moveTxt = new ui.TextView({
+            superview: this,
+            x: 210,
+            y: 40,
+            width: 100,
+            height: 30,
             autoFontSize: true,
             verticalAlign: 'middle',
             horizontalAlign: 'center',
@@ -51,22 +69,60 @@ exports = Class(ui.ImageView, function(supr) {
             color: '#F9912E',
             shadowColor: '#3A96CF'
         });
+        this.scoreTxt = new ui.TextView({
+            superview: this,
+            x: 20,
+            y: 40,
+            width: 250,
+            height: 30,
+            autoFontSize: true,
+            verticalAlign: 'middle',
+            horizontalAlign: 'left',
+            wrap: false,
+            strokeWidth: '3',
+            strokeColor: '#fff',
+            color: '#F9912E',
+            shadowColor: '#3A96CF'
+        });
+        this.targetScoreTxt = new ui.TextView({
+            superview: this,
+            x: 20,
+            y: 70,
+            width: 250,
+            height: 20,
+            autoFontSize: true,
+            verticalAlign: 'middle',
+            horizontalAlign: 'left',
+            wrap: false,
+            strokeWidth: '3',
+            strokeColor: '#fff',
+            color: '#F9912E',
+            shadowColor: '#3A96CF'
+        });
+
         this.on('app:start', bind(this, function() {
             this.gameStart();
+            this.startTxt.setText("Tap to Start!");
         }));
 
     };
-
+    var gemGrid;
+    var _gemsType = [];
     var allowInput = false;
-
+    this.currentLevel = 0;
+    this.totalScore = 0;
     this.gameStart = function() {
-        this.startMessage.setText('Tap to PLAY!');
         gemGrid = new GemGrid({
             superview: this,
         });
 
         this.once('InputSelect', () => {
-            this.startMessage.hide();
+            this.startTxt.hide();
+            this.availableMove = Global.Move[this.currentLevel];
+            this.targetScore = Global.Target[this.currentLevel];
+            this.moveTxt.setText("Move:" + this.availableMove);
+            this.scoreTxt.setText("Score:" + this.totalScore);
+            this.targetScoreTxt.setText("Target:"+ this.targetScore)
             this.initizeGrid();
             this.getAllPossibleMove();
             gemGrid.on('InputSelect', bind(this, function(event, point) {
@@ -78,8 +134,38 @@ exports = Class(ui.ImageView, function(supr) {
         this.once("GemGrid:MoveFinish", allowInput = true);
     }
 
-    var gemGrid;
-    var _gemsType = [];
+    this.checkGameStatus = function(){
+        if(this.targetScore == 0)
+        {
+            if(Global.Target.length == this.currentLevel + 1){
+                this.startTxt.setText("Congradulation!!!\nYou beat the game!");
+                this.currentLevel = 0;
+            }
+            else {
+                this.startTxt.setText("You beat level "+ (this.currentLevel + 1) +"!");
+                this.currentLevel++;
+            }
+            this.resetGame();
+            this.gameStart();
+        }
+        else if(this.availableMove == 0){
+            this.startTxt.setText("You lose!");
+            this.currentLevel = 0;
+            this.resetGame();
+            this.gameStart();
+        }
+
+    }
+    this.resetGame = function(){
+        _gemsType = [];
+        //gemGrid.gems = [];
+        selectedGem = [];
+        this.removeSubview(gemGrid);
+        //gemGrid.clearGem();
+        gemGrid = null;
+        this.startTxt.show();
+    }
+
 
     this.initizeGrid = function() {
         do {
@@ -268,15 +354,70 @@ exports = Class(ui.ImageView, function(supr) {
             }
         }
     }
+    var chainCount = 0;
+    this.setScore = function(chain){
+        var score = chain.length * Setting.basicScore*chainCount;
+        this.totalScore += score;
+        this.targetScore -= score;
+        if(this.targetScore < 0)
+            this.targetScore = 0;
+        var startX = 0;
+        var startY = 0;
+        for(var i = 0; i <chain.length;i++){
+            var coord = Global.getCoord(chain[i][0],chain[i][1])
+            startX += coord.x;
+            startY += coord.y;
+        }
+        startX /= chain.length;
+        startY /= chain.length;
+        // var scoreView = this.scoreViewPool.obtainView();
+        //
+        // scoreView.updateOpts({x:startX,y:startY,visible:true});
+        // scoreView.setText("Get Score");
+        // var animator = animate(scoreView).now({x: 20,y: 40},
+        //         3000).then(this.scoreViewPool.releaseView(scoreView));
+        // this.anime.push(animator);
 
+        var scoreView = new ui.TextView({
+            superview: this,
+            x: startX + Setting.gridX -15,
+            y: startY + Setting.gridY,
+            width: 60,
+            height: 30,
+            autoFontSize: true,
+            verticalAlign: 'middle',
+            horizontalAlign: 'center',
+            wrap: false,
+            strokeWidth: '3',
+            strokeColor: '#fff',
+            color: '#F9912E',
+            shadowColor: '#3A96CF',
+            zIndex:1
+        });
+        scoreView.setText(score);
+        var animator = animate(scoreView).wait(500)
+        .then({x: this.scoreTxt.style.x + 30,y:this.scoreTxt.style.y},300)
+        .then(bind(this,()=>{
+                     this.scoreTxt.setText("Score:" + this.totalScore);
+                     this.targetScoreTxt.setText("Target:" + this.targetScore);;
+                     this.removeSubview(scoreView);
+                 }));
+
+        // var gem = this.gemViewPool.obtainView();
+        // gem.updateOpts({x:params.x,y:params.y,backgroundColor:"#00ffff",superview:this });
+    }
 
     this.removeChain = function() {
         if(allChain == 0) console.log("error");
+        chainCount += allChain.length;
         for (var i = 0; i < allChain.length; i++) {
+            var chain = [];
             for (var j = 0; j < allChain[i].length; j++) {
                 var coord = allChain[i][j].split(",");
+                chain.push(coord);
                 _gemsType[coord[0]][coord[1]] = -1;
             }
+            this.setScore(chain);
         }
         gemGrid.once("GemGrid:RemoveChainFinish", bind(this, function() {
             this.gemFall();
@@ -297,7 +438,11 @@ exports = Class(ui.ImageView, function(supr) {
                 this.removeChain();
             } else {
                 this.getAllPossibleMove();
+                chainCount = 0;
                 allowInput = true;
+                this.availableMove--;
+                this.moveTxt.setText("Move:" + this.availableMove);
+                this.checkGameStatus();
             }
         }));
     }
@@ -325,15 +470,9 @@ exports = Class(ui.ImageView, function(supr) {
 
     this.refillGem = function() {
         for (var j = 0; j < COLUMN; j++) {
-            var oldType = -1;
             for (var i = 0; i < ROW; i++) {
                 if (_gemsType[i][j] != -1) continue;
-                var randomType;
-                do {
-                    randomType = Math.floor((Math.random() * 5));
-                }
-                while (oldType == randomType);
-                oldType = randomType;
+                var randomType = Math.floor((Math.random() * 5));
                 _gemsType[i][j] = randomType;
             }
         }
@@ -343,6 +482,8 @@ exports = Class(ui.ImageView, function(supr) {
 
 });
 
+
+
 function highlightGem(gem) {
     gem.updateOpts({
         backgroundColor: '#ffffff'
@@ -351,6 +492,6 @@ function highlightGem(gem) {
 
 function deHighlightGem(gem) {
     gem.updateOpts({
-        backgroundColor: '#000000'
+        backgroundColor: ''
     });
 }
